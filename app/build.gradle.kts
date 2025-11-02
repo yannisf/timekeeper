@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.jvm)
     alias(libs.plugins.graalvm)
+    id("com.github.johnrengelman.shadow") version "8.1.1"
     application
 }
 
@@ -20,6 +21,10 @@ java {
 
 application {
     mainClass = "eu.frlab.timekeeper.TimeKeeperKt"
+}
+
+tasks.shadowJar {
+    archiveFileName.set("timekeeper.jar")
 }
 
 graalvmNative {
