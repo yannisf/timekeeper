@@ -1,14 +1,26 @@
 package eu.frlab.timekeeper
 
 import java.io.File
+import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 import kotlin.system.exitProcess
 
 
 val DatabasePath = "${System.getProperty("user.home")}/.timekeeper"
 val TimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
+
+fun Duration.toPrettyString(): String = buildString {
+    val hours = toHours()
+    val minutes = toMinutesPart()
+    val seconds = toSecondsPart()
+
+    if (hours > 0) append("${hours}h ")
+    if (minutes > 0) append("${minutes}m ")
+    if (seconds > 0 || isEmpty()) append("${seconds}s")
+}.trim()
 
 fun LocalTime.toTime(): String = this.format(TimeFormatter)
 
@@ -43,6 +55,25 @@ class Manager {
         val today = LocalDate.now().toString()
         val now = LocalTime.now().toTime()
         if (database.hasOpenEntryForDate(today)) stopInternal(today, now) else startInternal(today, now)
+    }
+
+    fun todayReport() {
+        val today = LocalDate.now().toString()
+        val entries = database.dateEntries(today)
+        if (entries.isEmpty()) {
+            println("No entries for today ($today).")
+        } else {
+            val workMinutes = entries.sumOf { it.durationInMinutes() }
+            val prettyDuration = Duration.of(workMinutes, ChronoUnit.MINUTES).toPrettyString()
+            val breakDurationMinutes = entries.zipWithNext { previous, next ->
+                val previousStop = LocalTime.parse(previous.stop!!)
+                val nextStart = LocalTime.parse(next.start)
+                Duration.between(previousStop, nextStart).toMinutes()
+            }.sum()
+
+            println("Today's work duration: $prettyDuration")
+            println("Today's breaks: ${entries.size - 1} for a total of $breakDurationMinutes minutes")
+        }
     }
 
     private fun startInternal(today: String, now: String) {

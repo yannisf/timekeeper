@@ -3,7 +3,8 @@ package eu.frlab.timekeeper
 enum class Command(val cmd: String) {
     START("start"),
     STOP("stop"),
-    TICK("tick");
+    TICK("tick"),
+    REPORT("report");
 }
 
 enum class ErrorCode(val code: Int, val description: String) {
@@ -28,6 +29,7 @@ fun main(args: Array<String>) {
             Command.START -> manager.start()
             Command.STOP -> manager.stop()
             Command.TICK -> manager.tick()
+            Command.REPORT -> manager.todayReport()
         }
     } catch (t: Throwable) {
         Manager.error(ErrorCode.GENERAL_ERROR, t.message)
