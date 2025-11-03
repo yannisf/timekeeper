@@ -11,6 +11,9 @@ repositories {
 
 dependencies {
     implementation(libs.sqlite)
+    
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.kotest.assertions)
 }
 
 java {
@@ -25,6 +28,10 @@ application {
 
 tasks.shadowJar {
     archiveFileName.set("timekeeper.jar")
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 graalvmNative {

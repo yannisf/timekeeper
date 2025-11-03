@@ -12,7 +12,11 @@ val TimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
 
 fun LocalTime.toTime(): String = this.format(TimeFormatter)
 
-class Manager {
+class Manager(
+    private val database: Database? = null,
+    private val dateTimeProvider: DateTimeProvider = SystemDateTimeProvider(),
+    private val errorHandler: ErrorHandler = SystemErrorHandler()
+) {
 
     companion object {
         fun error(errorCode: ErrorCode, additionalInfo: String? = null): Nothing {
@@ -22,36 +26,36 @@ class Manager {
         }
     }
 
-    private val database = run {
+    private val db = database ?: run {
         File(DatabasePath).mkdirs()
         Database("$DatabasePath/timekeeper.db").apply { createTimeEntriesTable() }
     }
 
     fun start() {
-        val today = LocalDate.now().toString()
-        val now = LocalTime.now().toTime()
-        if (database.hasOpenEntryForDate(today)) error(ErrorCode.CANNOT_START) else startInternal(today, now)
+        val today = dateTimeProvider.getCurrentDate()
+        val now = dateTimeProvider.getCurrentTime()
+        if (db.hasOpenEntryForDate(today)) errorHandler.handleError(ErrorCode.CANNOT_START) else startInternal(today, now)
     }
 
     fun stop() {
-        val today = LocalDate.now().toString()
-        val now = LocalTime.now().toTime()
-        if (database.hasOpenEntryForDate(today)) stopInternal(today, now) else error(ErrorCode.CANNOT_STOP)
+        val today = dateTimeProvider.getCurrentDate()
+        val now = dateTimeProvider.getCurrentTime()
+        if (db.hasOpenEntryForDate(today)) stopInternal(today, now) else errorHandler.handleError(ErrorCode.CANNOT_STOP)
     }
 
     fun tick() {
-        val today = LocalDate.now().toString()
-        val now = LocalTime.now().toTime()
-        if (database.hasOpenEntryForDate(today)) stopInternal(today, now) else startInternal(today, now)
+        val today = dateTimeProvider.getCurrentDate()
+        val now = dateTimeProvider.getCurrentTime()
+        if (db.hasOpenEntryForDate(today)) stopInternal(today, now) else startInternal(today, now)
     }
 
     private fun startInternal(today: String, now: String) {
-        val updatedRecords = database.startEntry(today, now)
+        val updatedRecords = db.startEntry(today, now)
         if (updatedRecords == 1) println("Started at [$today $now]")
     }
 
     private fun stopInternal(today: String, now: String) {
-        val updatedRecords = database.stopEntry(today, now)
+        val updatedRecords = db.stopEntry(today, now)
         if (updatedRecords == 1) println("Stopped at [$today $now]")
     }
 

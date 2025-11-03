@@ -5,9 +5,13 @@
 kotlin = "1.9.22"
 graalvm = "0.10.2"
 sqlite = "3.41.2.2"
+junit = "5.10.1"
+kotest = "5.8.0"
 
 [libraries]
 sqlite = { module =  "org.xerial:sqlite-jdbc", version.ref = "sqlite" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
+kotest-assertions = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }
 
 [plugins]
 jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
