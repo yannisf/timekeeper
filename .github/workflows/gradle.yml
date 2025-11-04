@@ -9,8 +9,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     permissions:
-      contents: read
+      contents: write
+
     steps:
 
       - name: Checkout code
@@ -35,3 +37,15 @@ jobs:
         run: |
           ./gradlew -Pagent run --args="report"
           ./gradlew nativeCompile
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            app/build/libs/timekeeper.jar
+            app/build/native/nativeCompile/timekeeper
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
