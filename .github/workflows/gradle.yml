@@ -20,7 +20,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '21'
-          distribution: 'temurin'
+          distribution: 'graalvm'
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
@@ -30,3 +30,8 @@ jobs:
 
       - name: Generate shadow JAR
         run: ./gradlew shadowJar
+
+      - name: Generate native binary
+        run: |
+          ./gradlew -Pagent run --args="report"
+          ./gradlew nativeCompile
