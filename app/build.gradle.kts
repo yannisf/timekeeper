@@ -27,6 +27,10 @@ tasks.shadowJar {
     archiveFileName.set("timekeeper.jar")
 }
 
+tasks.run.configure {
+    outputs.upToDateWhen { false }
+}
+
 graalvmNative {
     binaries {
         named("main") {

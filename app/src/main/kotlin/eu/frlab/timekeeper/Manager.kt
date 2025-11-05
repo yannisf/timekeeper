@@ -71,6 +71,9 @@ class Manager {
                 Duration.between(previousStop, nextStart).toMinutes()
             }.sum()
 
+            with(entries.last()) {
+                println(stop?.let { "Stopped working at $it" } ?: "Working since $start")
+            }
             println("Today's work duration: $prettyDuration")
             println("Today's breaks: ${entries.size - 1} for a total of $breakDurationMinutes minutes")
         }
