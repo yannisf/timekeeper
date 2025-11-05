@@ -29,6 +29,9 @@ CREATE TABLE IF NOT EXISTS time_entries (
 
 Each time you run the `tick`, `start`, or `stop` commands, a new entry is created or updated in this database.
 
+The database location can be overridden by setting the `TIMEKEEPER_DB_PATH` environment variable. 
+This might prove useful for testing or if you want to maintain multiple databases.
+
 ## How to run
 
 You can build and run Timekeeper using gradle:

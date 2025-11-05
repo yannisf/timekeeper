@@ -9,7 +9,7 @@ import java.time.temporal.ChronoUnit
 import kotlin.system.exitProcess
 
 
-val DatabasePath = "${System.getProperty("user.home")}/.timekeeper"
+val DatabasePath = System.getenv("TIMEKEEPER_DB_PATH") ?: "${System.getProperty("user.home")}/.timekeeper"
 val TimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
 
 fun Duration.toPrettyString(): String = buildString {
