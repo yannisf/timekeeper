@@ -3,9 +3,6 @@ name: Build with Gradle
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-  workflow_dispatch:
 
 jobs:
   build:
@@ -24,7 +21,7 @@ jobs:
         with:
           java-version: '21'
           distribution: 'graalvm'
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
@@ -40,10 +37,20 @@ jobs:
           ./gradlew -Pagent run --args="report"
           ./gradlew nativeCompile
 
+      - name: Create and push timestamp tag
+        id: create_tag
+        run: |
+          TAG="release-$(date +'%Y%m%d_%H%M')"
+          echo "Creating tag: $TAG"
+          git tag $TAG
+          git push origin $TAG
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Tag $TAG created and pushed successfully"
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: build-${{ github.sha }}
+          tag_name: ${{ steps.create_tag.outputs.tag }}
           files: |
             app/build/libs/timekeeper.jar
             app/build/native/nativeCompile/timekeeper
