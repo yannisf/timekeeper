@@ -22,9 +22,12 @@ fun main(args: Array<String>) {
         Command.entries.firstOrNull { it.cmd == arg }
     } ?: Manager.error(ErrorCode.INVALID_ARGUMENTS)
 
+    val databasePath = System.getenv("TIMEKEEPER_DB_PATH")
+        ?: "${System.getProperty("user.home")}/.timekeeper.db"
+
     //Command execution
     try {
-        val manager = Manager()
+        val manager = Manager(databasePath)
         when (command) {
             Command.START -> manager.start()
             Command.STOP -> manager.stop()

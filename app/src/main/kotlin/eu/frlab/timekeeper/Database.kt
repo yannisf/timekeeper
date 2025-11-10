@@ -76,9 +76,7 @@ data class TimeEntry(
 
     fun durationInMinutes(): Long {
         val startLocalTime = LocalTime.parse(start)
-        val stopLocalTime = stop?.let {
-            LocalTime.parse(it)
-        } ?: LocalTime.now()
+        val stopLocalTime = stop?.let { LocalTime.parse(it) } ?: LocalTime.now()
 
         return Duration.between(startLocalTime, stopLocalTime).toMinutes()
     }

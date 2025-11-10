@@ -1,15 +1,15 @@
 package eu.frlab.timekeeper
 
-import java.io.File
+import java.nio.file.Files
 import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import kotlin.io.path.Path
 import kotlin.system.exitProcess
 
 
-val DatabasePath = System.getenv("TIMEKEEPER_DB_PATH") ?: "${System.getProperty("user.home")}/.timekeeper"
 val TimeFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
 
 fun Duration.toPrettyString(): String = buildString {
@@ -24,19 +24,21 @@ fun Duration.toPrettyString(): String = buildString {
 
 fun LocalTime.toTime(): String = this.format(TimeFormatter)
 
-class Manager {
+class Manager(databasePath: String) {
 
     companion object {
         fun error(errorCode: ErrorCode, additionalInfo: String? = null): Nothing {
-            System.err.println(errorCode.description)
-            additionalInfo?.let { System.err.println(it) }
+            val message = additionalInfo?.let { "${errorCode.description} $it" } ?: errorCode.description
+            System.err.println(message)
             exitProcess(errorCode.code)
         }
     }
 
     private val database = run {
-        File(DatabasePath).mkdirs()
-        Database("$DatabasePath/timekeeper.db").apply { createTimeEntriesTable() }
+        if (Files.notExists(Path(databasePath))) {
+            println("Initializing a new database file at '$databasePath'")
+        }
+        Database(databasePath).apply { createTimeEntriesTable() }
     }
 
     fun start() {
@@ -88,5 +90,4 @@ class Manager {
         val updatedRecords = database.stopEntry(today, now)
         if (updatedRecords == 1) println("Stopped at [$today $now]")
     }
-
 }
