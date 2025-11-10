@@ -11,6 +11,9 @@ repositories {
 
 dependencies {
     implementation(libs.sqlite)
+
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.kotest.assertions)
 }
 
 java {
@@ -21,6 +24,10 @@ java {
 
 application {
     mainClass = "eu.frlab.timekeeper.TimeKeeperKt"
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 tasks.shadowJar {
