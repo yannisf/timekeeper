@@ -29,16 +29,16 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
 
-      - name: Build with Gradle Wrapper
-        run: ./gradlew build
+      - name: Build CLI with Gradle Wrapper
+        run: ./gradlew :app:build
 
       - name: Generate shadow JAR
-        run: ./gradlew shadowJar
+        run: ./gradlew :app:shadowJar
 
       - name: Generate native binary
         run: |
-          ./gradlew -Pagent run --args="status"
-          ./gradlew nativeCompile
+          ./gradlew -Pagent :app:run --args="status"
+          ./gradlew :app:nativeCompile
 
       - name: Create and push timestamp tag
         id: create_tag
@@ -83,14 +83,6 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
-
-      - name: Install timekeeper CLI binary
-        run: |
-          ./gradlew nativeCompile
-          mkdir -p /usr/local/bin
-          cp app/build/native/nativeCompile/timekeeper /usr/local/bin/
-          chmod +x /usr/local/bin/timekeeper
-          which timekeeper
 
       - name: Build desktop DMG
         run: ./gradlew :desktop:packageDmg
