@@ -21,6 +21,8 @@ class Database(dbName: String) {
         val check = "SELECT COUNT(*) AS count FROM time_entries WHERE date = ? AND stop IS NULL"
         val start = "INSERT INTO time_entries (date, start) VALUES (?, ?)"
         val stop = "UPDATE time_entries SET stop = ? WHERE date = ? and stop IS NULL"
+        val delete = "DELETE FROM time_entries WHERE date = ? AND stop IS NULL"
+        val clearStop = "UPDATE time_entries SET stop = NULL WHERE date = ? AND id = (SELECT id FROM time_entries WHERE date = ? ORDER BY id DESC LIMIT 1)"
         val allForDay = "SELECT * FROM time_entries WHERE date = ? ORDER BY id ASC"
     }
 
@@ -49,6 +51,17 @@ class Database(dbName: String) {
 
     fun stopEntry(today: String, now: String) = conn.prepareStatement(stop).use {
         it.setString(1, now)
+        it.setString(2, today)
+        it.executeUpdate()
+    }
+
+    fun deleteOpenEntry(today: String) = conn.prepareStatement(delete).use {
+        it.setString(1, today)
+        it.executeUpdate()
+    }
+
+    fun clearStopTimeOfLastEntry(today: String) = conn.prepareStatement(clearStop).use {
+        it.setString(1, today)
         it.setString(2, today)
         it.executeUpdate()
     }

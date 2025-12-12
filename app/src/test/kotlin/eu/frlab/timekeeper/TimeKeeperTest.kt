@@ -41,60 +41,96 @@ class TimeKeeperTest {
 
         captureConsoleOutput { readAndReset ->
             try {
-                val manager = Manager("./testdb")
+                val manager = Manager("./testdb", minIntervalSeconds = 5)
                 val initialOutput = readAndReset()
-                initialOutput shouldStartWith "Initializing a new database file at"
+                initialOutput shouldStartWith "Initializing database at:"
 
-                manager.todayReport()
+                manager.status()
                 val report1 = readAndReset()
                 report1 shouldStartWith "No entries for today"
-
-                manager.start()
-                Thread.sleep(1000)
-                val start1 = readAndReset()
-                start1 shouldStartWith "Started at"
-
-                manager.todayReport()
-                val report2 = readAndReset()
-                report2 shouldStartWith "Working since"
-                report2 shouldContain  "Today's work duration"
-                report2 shouldContain  "Today's breaks"
-
-                manager.stop()
-                Thread.sleep(1000)
-                val stop1 = readAndReset()
-                stop1 shouldStartWith "Stopped at"
-
-                manager.todayReport()
-                val report3 = readAndReset()
-                report3 shouldStartWith "Stopped working at"
-                report3 shouldContain  "Today's work duration"
-                report3 shouldContain  "Today's breaks"
 
                 manager.tick()
                 Thread.sleep(1000)
                 val tick1 = readAndReset()
-                tick1 shouldStartWith "Started at"
+                tick1 shouldStartWith "Started at:"
 
-                manager.todayReport()
-                val report4 = readAndReset()
-                report4 shouldStartWith "Working since"
-                report4 shouldContain  "Today's work duration"
-                report4 shouldContain  "Today's breaks"
+                manager.status()
+                val report2 = readAndReset()
+                report2 shouldStartWith "Working since:"
+                report2 shouldContain "Work duration today:"
+                report2 shouldContain "No breaks taken yet"
 
                 manager.tick()
                 Thread.sleep(1000)
                 val tick2 = readAndReset()
-                tick2 shouldStartWith "Stopped at"
+                tick2 shouldContain "Discarded interval (less than 5s)"
 
-                manager.todayReport()
+                manager.status()
+                val report3 = readAndReset()
+                report3 shouldStartWith "No entries for today"
+
+                manager.tick()
+                Thread.sleep(1000)
+                val tick3 = readAndReset()
+                tick3 shouldStartWith "Started at:"
+
+                manager.status()
+                val report4 = readAndReset()
+                report4 shouldStartWith "Working since:"
+                report4 shouldContain "Work duration today:"
+                report4 shouldContain "No breaks taken yet"
+
+                manager.tick()
+                Thread.sleep(1000)
+                val tick4 = readAndReset()
+                tick4 shouldContain "Discarded interval (less than 5s)"
+
+                manager.status()
                 val report5 = readAndReset()
-                report5 shouldStartWith "Stopped working at"
-                report5 shouldContain  "Today's work duration"
-                report5 shouldContain  "Today's breaks"
+                report5 shouldStartWith "No entries for today"
 
             } finally {
                 Files.deleteIfExists(Path("./testdb"))
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("Should extend interval after short break")
+    fun `Should extend interval after short break`() {
+
+        captureConsoleOutput { readAndReset ->
+            try {
+                val manager = Manager("./testdb2", minIntervalSeconds = 2, shortBreakThresholdSeconds = 3)
+                val initialOutput = readAndReset()
+                initialOutput shouldStartWith "Initializing database at:"
+
+                manager.tick()
+                Thread.sleep(3000)
+                val tick1 = readAndReset()
+                tick1 shouldStartWith "Started at:"
+
+                manager.tick()
+                Thread.sleep(1000)
+                val tick2 = readAndReset()
+                tick2 shouldContain "Work duration today:"
+                tick2 shouldContain "Interval started at:"
+                tick2 shouldContain "Stopped at:"
+                tick2 shouldContain "Enjoy your break"
+
+                // Short break (< 3 seconds) - should extend
+                Thread.sleep(1000)
+                manager.tick()
+                val tick3 = readAndReset()
+                tick3 shouldContain "Resumed work:"
+                tick3 shouldContain "break:"
+
+                manager.status()
+                val report = readAndReset()
+                report shouldContain "Working since:"
+
+            } finally {
+                Files.deleteIfExists(Path("./testdb2"))
             }
         }
     }

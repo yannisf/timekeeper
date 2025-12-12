@@ -1,10 +1,8 @@
 package eu.frlab.timekeeper
 
 enum class Command(val cmd: String) {
-    START("start"),
-    STOP("stop"),
     TICK("tick"),
-    REPORT("report");
+    STATUS("status");
 }
 
 enum class ErrorCode(val code: Int, val description: String) {
@@ -29,10 +27,8 @@ fun main(args: Array<String>) {
     try {
         val manager = Manager(databasePath)
         when (command) {
-            Command.START -> manager.start()
-            Command.STOP -> manager.stop()
             Command.TICK -> manager.tick()
-            Command.REPORT -> manager.todayReport()
+            Command.STATUS -> manager.status()
         }
     } catch (t: Throwable) {
         Manager.error(ErrorCode.GENERAL_ERROR, t.message)
