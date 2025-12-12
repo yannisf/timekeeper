@@ -4,3 +4,4 @@ plugins {
 
 rootProject.name = "timekeeper"
 include("app")
+include("desktop")

@@ -7,12 +7,18 @@ graalvm = "0.10.2"
 sqlite = "3.41.2.2"
 junit = "5.10.1"
 kotest = "6.0.3"
+compose = "1.7.1"
+coroutines = "1.9.0"
 
 [libraries]
 sqlite = { module =  "org.xerial:sqlite-jdbc", version.ref = "sqlite" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
 kotest-assertions = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }
+compose-desktop = { module = "org.jetbrains.compose.desktop:desktop-jvm", version.ref = "compose" }
+coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
+coroutines-swing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "coroutines" }
 
 [plugins]
 jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 graalvm = { id = "org.graalvm.buildtools.native", version.ref = "graalvm" }
+compose = { id = "org.jetbrains.compose", version.ref = "compose" }
