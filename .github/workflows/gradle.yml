@@ -34,7 +34,7 @@ jobs:
 
       - name: Generate native binary
         run: |
-          ./gradlew -Pagent run --args="report"
+          ./gradlew -Pagent run --args="status"
           ./gradlew nativeCompile
 
       - name: Create and push timestamp tag
