@@ -7,9 +7,7 @@ enum class Command(val cmd: String) {
 
 enum class ErrorCode(val code: Int, val description: String) {
     INVALID_ARGUMENTS(1, "Expected one of: ${Command.entries.joinToString(", ") { it.cmd }}"),
-    CANNOT_START(2, "Cannot start a new entry when one is already open."),
-    CANNOT_STOP(3, "Cannot stop an entry when none is open."),
-    GENERAL_ERROR(4, "An unexpected error occurred.");
+    GENERAL_ERROR(2, "An unexpected error occurred.");
 }
 
 fun main(args: Array<String>) {
