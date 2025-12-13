@@ -6,10 +6,10 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: write
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
 
     steps:
 
@@ -30,12 +30,55 @@ jobs:
         run: ./gradlew build
 
       - name: Generate shadow JAR
+        if: matrix.os == 'ubuntu-latest'
         run: ./gradlew shadowJar
 
       - name: Generate native binary
         run: |
           ./gradlew -Pagent run --args="status"
           ./gradlew nativeCompile
+
+      - name: Stage Linux artifacts
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          mkdir -p linux-staging
+          cp app/build/libs/timekeeper.jar linux-staging/
+          cp app/build/native/nativeCompile/timekeeper linux-staging/timekeeper-linux
+
+      - name: Upload Linux artifacts
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-artifacts
+          path: linux-staging/
+
+      - name: Stage macOS artifact
+        if: matrix.os == 'macos-latest'
+        run: |
+          mkdir -p macos-staging
+          cp app/build/native/nativeCompile/timekeeper macos-staging/timekeeper-macos
+
+      - name: Upload macOS artifact
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-artifacts
+          path: macos-staging/
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
 
       - name: Create and push timestamp tag
         id: create_tag
@@ -47,13 +90,21 @@ jobs:
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "Tag $TAG created and pushed successfully"
 
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          cp linux-artifacts/timekeeper.jar release/
+          cp linux-artifacts/timekeeper-linux release/
+          cp macos-artifacts/timekeeper-macos release/
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.create_tag.outputs.tag }}
           files: |
-            app/build/libs/timekeeper.jar
-            app/build/native/nativeCompile/timekeeper
+            release/timekeeper.jar
+            release/timekeeper-linux
+            release/timekeeper-macos
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
