@@ -26,9 +26,12 @@ fun main(args: Array<String>) {
     //Command execution
     try {
         val manager = Manager(databasePath)
+        val today = java.time.LocalDate.now()
+        val now = java.time.LocalTime.now()
+
         when (command) {
-            Command.TICK -> manager.tick()
-            Command.STATUS -> manager.status()
+            Command.TICK -> manager.tick(today, now)
+            Command.STATUS -> manager.status(today, now)
         }
     } catch (t: Throwable) {
         Manager.error(ErrorCode.GENERAL_ERROR, t.message)

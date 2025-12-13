@@ -24,7 +24,148 @@ fun Duration.toPrettyString(): String = buildString {
 
 fun LocalTime.toTime(): String = this.format(TimeFormatter)
 
-class Manager(databasePath: String, private val minIntervalSeconds: Long = 60, private val shortBreakThresholdSeconds: Long = 60) {
+class Manager(
+    databasePath: String, private val minIntervalSeconds: Long = 60, private val shortBreakThresholdSeconds: Long = 60
+) {
+
+    private val database = run {
+        if (Files.notExists(Path(databasePath))) println("Initializing database at: $databasePath")
+        Database(databasePath).apply { createTimeEntriesTable() }
+    }
+
+    fun tick(today: LocalDate, now: LocalTime) {
+        if (database.hasOpenEntryForDate(today.toString())) stopInternal(today, now) else startInternal(today, now)
+    }
+
+    fun status(today: LocalDate, now: LocalTime) {
+        val entries = database.dateEntries(today.toString())
+
+        // Print current state
+        when {
+            entries.isEmpty() -> println("No entries for today")
+            else -> {
+                val lastEntry = entries.last()
+                when (lastEntry.stop) {
+                    null -> {
+                        // Currently working
+                        val startTime = LocalTime.parse(lastEntry.start)
+                        val duration = Duration.between(startTime, now).toPrettyString()
+                        println("Working since: ${lastEntry.start} ($duration)")
+                    }
+                    else -> {
+                        // On a break
+                        val stopTime = LocalTime.parse(lastEntry.stop)
+                        val duration = Duration.between(stopTime, now).toPrettyString()
+                        println("On a break since: ${lastEntry.stop} ($duration)")
+                    }
+                }
+            }
+        }
+
+        // Print daily summary
+        if (entries.isNotEmpty()) {
+            printWorkDuration(calculateWorkMinutes(entries, now))
+            val (breakCount, breakMinutes) = calculateBreakStatistics(entries)
+            printBreakSummary(breakCount, breakMinutes)
+        }
+    }
+
+    private fun startInternal(today: LocalDate, now: LocalTime) {
+        val entries = database.dateEntries(today.toString())
+
+        val shouldExtend = entries.lastOrNull()?.let { lastEntry ->
+            lastEntry.stop != null &&
+            Duration.between(LocalTime.parse(lastEntry.stop), now).seconds <= shortBreakThresholdSeconds
+        } ?: false
+
+        if (shouldExtend) {
+            // Extend interval
+            val lastEntry = entries.last()
+            val breakDuration = Duration.between(LocalTime.parse(lastEntry.stop!!), now)
+            database.clearStopTimeOfLastEntry(today.toString()).takeIf { it == 1 }?.let {
+                println("Resumed work: extending interval from ${lastEntry.start} (break: ${breakDuration.toPrettyString()})")
+            }
+        } else {
+            // Normal start flow
+            printStartReport(entries, now)
+            database.startEntry(today.toString(), now.toTime()).takeIf { it == 1 }?.let {
+                println("Started at: ${now.toTime()}")
+            }
+        }
+    }
+
+    private fun stopInternal(today: LocalDate, now: LocalTime) {
+        val entries = database.dateEntries(today.toString())
+
+        val shouldDiscard = entries.lastOrNull()?.let { currentEntry ->
+            val intervalDuration = Duration.between(LocalTime.parse(currentEntry.start), now)
+            intervalDuration.seconds < minIntervalSeconds
+        } ?: false
+
+        if (shouldDiscard) {
+            // Discard interval
+            database.deleteOpenEntry(today.toString()).takeIf { it == 1 }?.let {
+                println("Discarded interval (less than ${minIntervalSeconds}s)")
+            }
+        } else {
+            // Normal stop flow
+            printStopReport(entries, now)
+            database.stopEntry(today.toString(), now.toTime()).takeIf { it == 1 }?.let {
+                println("Stopped at: ${now.toTime()}")
+                println("Enjoy your break!")
+            }
+        }
+    }
+
+    private fun printStartReport(entries: List<TimeEntry>, now: LocalTime) {
+        if (entries.isEmpty()) return
+
+        printWorkDuration(calculateWorkMinutes(entries, now))
+        val (breakCount, breakMinutes) = calculateBreakStatistics(entries)
+        printBreakSummary(breakCount, breakMinutes)
+    }
+
+    private fun printStopReport(entries: List<TimeEntry>, now: LocalTime) {
+        if (entries.isEmpty()) return
+
+        printWorkDuration(calculateWorkMinutes(entries, now))
+        val (breakCount, breakMinutes) = calculateBreakStatistics(entries)
+        printBreakSummary(breakCount, breakMinutes)
+
+        println("Interval started at: ${entries.last().start}")
+    }
+
+    private fun calculateBreakStatistics(entries: List<TimeEntry>) = if (entries.size >= 2) {
+        val breakMinutes = entries.zipWithNext { previous, next ->
+            val lastStopTime = LocalTime.parse(previous.stop!!)
+            val nextStartTime = LocalTime.parse(next.start)
+            Duration.between(lastStopTime, nextStartTime).toMinutes()
+        }.sum()
+        (entries.size - 1) to breakMinutes
+    } else 0 to 0L
+
+    private fun calculateWorkMinutes(entries: List<TimeEntry>, now: LocalTime) = if (entries.isNotEmpty()) {
+        val lastEntry = entries.last()
+        if (lastEntry.stop == null) {
+            // Last entry is open - calculate with provided 'now'
+            val completedMinutes = entries.dropLast(1).sumOf { it.durationInMinutes() }
+            val currentMinutes = Duration.between(LocalTime.parse(lastEntry.start), now).toMinutes()
+            completedMinutes + currentMinutes
+        } else {
+            // All entries are closed - just sum them up
+            entries.sumOf { it.durationInMinutes() }
+        }
+    } else 0L
+
+    private fun printWorkDuration(workMinutes: Long) {
+        val duration = Duration.of(workMinutes, ChronoUnit.MINUTES).toPrettyString()
+        println("Work duration today: $duration")
+    }
+
+    private fun printBreakSummary(breakCount: Int, breakMinutes: Long) = when {
+        breakCount > 0 -> println("Breaks: $breakCount ($breakMinutes minutes)")
+        else -> println("No breaks taken yet")
+    }
 
     companion object {
         fun error(errorCode: ErrorCode, additionalInfo: String? = null): Nothing {
@@ -34,158 +175,4 @@ class Manager(databasePath: String, private val minIntervalSeconds: Long = 60, p
         }
     }
 
-    private val database = run {
-        if (Files.notExists(Path(databasePath))) {
-            println("Initializing database at: $databasePath")
-        }
-        Database(databasePath).apply { createTimeEntriesTable() }
-    }
-
-    fun tick() {
-        val today = LocalDate.now().toString()
-        val now = LocalTime.now().toTime()
-        if (database.hasOpenEntryForDate(today)) stopInternal(today, now) else startInternal(today, now)
-    }
-
-    fun status() {
-        val today = LocalDate.now().toString()
-        val entries = database.dateEntries(today)
-        val now = LocalTime.now()
-
-        // Print current state
-        if (entries.isEmpty()) {
-            println("No entries for today")
-        } else {
-            val lastEntry = entries.last()
-            if (lastEntry.stop == null) {
-                // Currently working
-                val startTime = LocalTime.parse(lastEntry.start)
-                val workDuration = Duration.between(startTime, now).toPrettyString()
-                println("Working since: ${lastEntry.start} ($workDuration)")
-            } else {
-                // On a break
-                val breakStartTime = LocalTime.parse(lastEntry.stop)
-                val breakDuration = Duration.between(breakStartTime, now).toPrettyString()
-                println("On a break since: ${lastEntry.stop} ($breakDuration)")
-            }
-        }
-
-        // Print daily summary
-        if (entries.isNotEmpty()) {
-            val workMinutes = entries.sumOf { it.durationInMinutes() }
-            val prettyDuration = Duration.of(workMinutes, ChronoUnit.MINUTES).toPrettyString()
-            val breakDurationMinutes = entries.zipWithNext { previous, next ->
-                val previousStop = LocalTime.parse(previous.stop!!)
-                val nextStart = LocalTime.parse(next.start)
-                Duration.between(previousStop, nextStart).toMinutes()
-            }.sum()
-
-            println("Work duration today: $prettyDuration")
-            if (entries.size - 1 > 0) {
-                println("Breaks: ${entries.size - 1} ($breakDurationMinutes minutes)")
-            } else {
-                println("No breaks taken yet")
-            }
-        }
-    }
-
-    private fun startInternal(today: String, now: String) {
-        val entries = database.dateEntries(today)
-
-        // Check if we should extend the previous interval instead of creating a new one
-        if (entries.isNotEmpty()) {
-            val lastEntry = entries.last()
-            if (lastEntry.stop != null) {
-                val breakDurationSeconds = Duration.between(LocalTime.parse(lastEntry.stop), LocalTime.parse(now)).seconds
-                if (breakDurationSeconds <= shortBreakThresholdSeconds) {
-                    // Extend the previous interval
-                    val updatedRecords = database.clearStopTimeOfLastEntry(today)
-                    if (updatedRecords == 1) {
-                        val breakDuration = Duration.ofSeconds(breakDurationSeconds).toPrettyString()
-                        println("Resumed work: extending interval from ${lastEntry.start} (break: $breakDuration)")
-                    }
-                    return
-                }
-            }
-        }
-
-        printStartReport(entries, now)
-
-        val updatedRecords = database.startEntry(today, now)
-        if (updatedRecords == 1) println("Started at: $now")
-    }
-
-    private fun stopInternal(today: String, now: String) {
-        val entries = database.dateEntries(today)
-
-        if (entries.isNotEmpty()) {
-            val currentEntry = entries.last()
-            val currentIntervalSeconds = Duration.between(LocalTime.parse(currentEntry.start), LocalTime.parse(now)).seconds
-
-            if (currentIntervalSeconds < minIntervalSeconds) {
-                val deletedRecords = database.deleteOpenEntry(today)
-                if (deletedRecords == 1) println("Discarded interval (less than ${minIntervalSeconds}s)")
-                return
-            }
-        }
-
-        printStopReport(entries, now)
-
-        val updatedRecords = database.stopEntry(today, now)
-        if (updatedRecords == 1) {
-            println("Stopped at: $now")
-            println("Enjoy your break!")
-        }
-    }
-
-    private fun printStartReport(entries: List<TimeEntry>, now: String) {
-        if (entries.isEmpty()) return
-
-        // Calculate total work time today (only completed entries)
-        val completedWorkMinutes = entries.sumOf { it.durationInMinutes() }
-        val prettyWorkDuration = Duration.of(completedWorkMinutes, ChronoUnit.MINUTES).toPrettyString()
-        println("Work duration today: $prettyWorkDuration")
-
-        // Calculate breaks between consecutive completed entries
-        val breakCount = entries.size - 1  // Breaks are gaps between existing entries
-        if (breakCount > 0) {
-            val breakDurationMinutes = entries.zipWithNext { previous, next ->
-                val previousStop = LocalTime.parse(previous.stop!!)
-                val nextStart = LocalTime.parse(next.start)
-                Duration.between(previousStop, nextStart).toMinutes()
-            }.sum()
-            println("Breaks: $breakCount ($breakDurationMinutes minutes)")
-        } else {
-            println("No breaks taken yet")
-        }
-    }
-
-    private fun printStopReport(entries: List<TimeEntry>, now: String) {
-        if (entries.isEmpty()) return
-
-        val currentEntry = entries.last()
-
-        // Calculate total work time today
-        val completedWorkMinutes = entries.dropLast(1).sumOf { it.durationInMinutes() }
-        val currentIntervalMinutes = Duration.between(LocalTime.parse(currentEntry.start), LocalTime.parse(now)).toMinutes()
-        val totalWorkMinutes = completedWorkMinutes + currentIntervalMinutes
-        val prettyWorkDuration = Duration.of(totalWorkMinutes, ChronoUnit.MINUTES).toPrettyString()
-        println("Work duration today: $prettyWorkDuration")
-
-        // Calculate breaks
-        val breakCount = entries.size - 1
-        if (breakCount > 0) {
-            val breakDurationMinutes = entries.zipWithNext { previous, next ->
-                val previousStop = LocalTime.parse(previous.stop!!)
-                val nextStart = LocalTime.parse(next.start)
-                Duration.between(previousStop, nextStart).toMinutes()
-            }.sum()
-            println("Breaks: $breakCount ($breakDurationMinutes minutes)")
-        } else {
-            println("No breaks taken yet")
-        }
-
-        val startTime = currentEntry.start
-        println("Interval started at: $startTime")
-    }
 }

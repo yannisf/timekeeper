@@ -7,6 +7,8 @@ import org.junit.jupiter.api.Test
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.nio.file.Files
+import java.time.LocalDate
+import java.time.LocalTime
 import kotlin.io.path.Path
 
 typealias ConsoleReader = () -> String
@@ -45,47 +47,47 @@ class TimeKeeperTest {
                 val initialOutput = readAndReset()
                 initialOutput shouldStartWith "Initializing database at:"
 
-                manager.status()
+                manager.status(LocalDate.now(), LocalTime.now())
                 val report1 = readAndReset()
                 report1 shouldStartWith "No entries for today"
 
-                manager.tick()
+                manager.tick(LocalDate.now(), LocalTime.now())
                 Thread.sleep(1000)
                 val tick1 = readAndReset()
                 tick1 shouldStartWith "Started at:"
 
-                manager.status()
+                manager.status(LocalDate.now(), LocalTime.now())
                 val report2 = readAndReset()
                 report2 shouldStartWith "Working since:"
                 report2 shouldContain "Work duration today:"
                 report2 shouldContain "No breaks taken yet"
 
-                manager.tick()
+                manager.tick(LocalDate.now(), LocalTime.now())
                 Thread.sleep(1000)
                 val tick2 = readAndReset()
                 tick2 shouldContain "Discarded interval (less than 5s)"
 
-                manager.status()
+                manager.status(LocalDate.now(), LocalTime.now())
                 val report3 = readAndReset()
                 report3 shouldStartWith "No entries for today"
 
-                manager.tick()
+                manager.tick(LocalDate.now(), LocalTime.now())
                 Thread.sleep(1000)
                 val tick3 = readAndReset()
                 tick3 shouldStartWith "Started at:"
 
-                manager.status()
+                manager.status(LocalDate.now(), LocalTime.now())
                 val report4 = readAndReset()
                 report4 shouldStartWith "Working since:"
                 report4 shouldContain "Work duration today:"
                 report4 shouldContain "No breaks taken yet"
 
-                manager.tick()
+                manager.tick(LocalDate.now(), LocalTime.now())
                 Thread.sleep(1000)
                 val tick4 = readAndReset()
                 tick4 shouldContain "Discarded interval (less than 5s)"
 
-                manager.status()
+                manager.status(LocalDate.now(), LocalTime.now())
                 val report5 = readAndReset()
                 report5 shouldStartWith "No entries for today"
 
@@ -105,12 +107,12 @@ class TimeKeeperTest {
                 val initialOutput = readAndReset()
                 initialOutput shouldStartWith "Initializing database at:"
 
-                manager.tick()
+                manager.tick(LocalDate.now(), LocalTime.now())
                 Thread.sleep(3000)
                 val tick1 = readAndReset()
                 tick1 shouldStartWith "Started at:"
 
-                manager.tick()
+                manager.tick(LocalDate.now(), LocalTime.now())
                 Thread.sleep(1000)
                 val tick2 = readAndReset()
                 tick2 shouldContain "Work duration today:"
@@ -120,12 +122,12 @@ class TimeKeeperTest {
 
                 // Short break (< 3 seconds) - should extend
                 Thread.sleep(1000)
-                manager.tick()
+                manager.tick(LocalDate.now(), LocalTime.now())
                 val tick3 = readAndReset()
                 tick3 shouldContain "Resumed work:"
                 tick3 shouldContain "break:"
 
-                manager.status()
+                manager.status(LocalDate.now(), LocalTime.now())
                 val report = readAndReset()
                 report shouldContain "Working since:"
 
