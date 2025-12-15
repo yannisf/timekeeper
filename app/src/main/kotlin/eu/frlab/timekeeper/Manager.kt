@@ -122,7 +122,13 @@ class Manager(
 
         printWorkDuration(calculateWorkMinutes(entries, now))
         val (breakCount, breakMinutes) = calculateBreakStatistics(entries)
-        printBreakSummary(breakCount, breakMinutes)
+
+        // Count the current break ending now
+        val currentBreak = entries.lastOrNull()?.stop?.let { stop ->
+            Duration.between(LocalTime.parse(stop), now).toMinutes()
+        } ?: 0L
+
+        printBreakSummary(breakCount + if (currentBreak > 0) 1 else 0, breakMinutes + currentBreak)
     }
 
     private fun printStopReport(entries: List<TimeEntry>, now: LocalTime) {
